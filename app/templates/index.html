@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lista della Spesa</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="container">
+    <h1>🛒 Lista della Spesa</h1>
+
+    <form id="form-articolo" class="form-articolo">
+      <input type="text" id="input-nome" placeholder="Nome articolo" required>
+      <input type="text" id="input-quantita" placeholder="Quantità" required>
+      <button type="submit">Aggiungi</button>
+    </form>
+
+    <ul id="lista-articoli" class="lista-articoli"></ul>
+
+    <p id="messaggio-vuoto" class="messaggio-vuoto" hidden>Nessun articolo nella lista.</p>
+  </main>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>

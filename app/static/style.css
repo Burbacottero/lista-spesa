@@ -1,0 +1,132 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: #f4f6f8;
+  color: #1f2933;
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.container {
+  width: 100%;
+  max-width: 480px;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+h1 {
+  text-align: center;
+  font-size: 1.5rem;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+}
+
+.form-articolo {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-articolo input {
+  flex: 1;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #cbd2d9;
+  border-radius: 8px;
+  font-size: 1rem;
+  min-width: 0;
+}
+
+.form-articolo input#input-quantita {
+  flex: 0 0 90px;
+}
+
+.form-articolo button {
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background-color: #2563eb;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.form-articolo button:hover {
+  background-color: #1d4ed8;
+}
+
+.lista-articoli {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.articolo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid #e4e7eb;
+  border-radius: 8px;
+  background-color: #fafbfc;
+}
+
+.articolo .info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+}
+
+.articolo .nome {
+  font-weight: 600;
+}
+
+.articolo .quantita {
+  font-size: 0.85rem;
+  color: #616e7c;
+}
+
+.articolo.comprato .nome,
+.articolo.comprato .quantita {
+  text-decoration: line-through;
+  color: #9aa5b1;
+}
+
+.articolo input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.btn-elimina {
+  border: none;
+  background: none;
+  color: #d64545;
+  font-size: 1.2rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+}
+
+.btn-elimina:hover {
+  background-color: #fde8e8;
+}
+
+.messaggio-vuoto {
+  text-align: center;
+  color: #9aa5b1;
+  margin-top: 1rem;
+}
