@@ -46,6 +46,32 @@ def _trova_o_crea_prodotto(
     return cursor.lastrowid
 
 
+def _aggiorna_o_crea_prodotto(
+    conn,
+    current_prodotto_id: int,
+    nome: str,
+    categoria: str,
+    unita_misura: str,
+) -> int:
+    """Come _trova_o_crea_prodotto, ma aggiorna anche categoria/unita_misura
+    se il nome risolve allo stesso prodotto già collegato alla voce."""
+    row = conn.execute(
+        "SELECT id FROM prodotti WHERE nome = ? COLLATE NOCASE", (nome,)
+    ).fetchone()
+    if row:
+        if row["id"] == current_prodotto_id:
+            conn.execute(
+                "UPDATE prodotti SET categoria = ?, unita_misura = ? WHERE id = ?",
+                (categoria, unita_misura, row["id"]),
+            )
+        return row["id"]
+    cursor = conn.execute(
+        "INSERT INTO prodotti (nome, categoria, unita_misura) VALUES (?, ?, ?)",
+        (nome, categoria, unita_misura),
+    )
+    return cursor.lastrowid
+
+
 # Query base con JOIN — usata da tutti gli endpoint di lettura
 _LISTA_SELECT = """
     SELECT vls.id, vls.prodotto_id, p.nome, p.categoria, p.unita_misura,
@@ -91,6 +117,15 @@ def crea_voce_lista(voce: VoceListaCreate) -> dict:
     return dict(row)
 
 
+@app.delete("/api/lista", status_code=200)
+def cancella_lista_intera() -> dict:
+    conn = get_connection()
+    result = conn.execute("DELETE FROM voci_lista_spesa")
+    conn.commit()
+    conn.close()
+    return {"eliminati": result.rowcount}
+
+
 @app.delete("/api/lista/comprati", status_code=200)
 def cancella_comprati() -> dict:
     conn = get_connection()
@@ -118,12 +153,14 @@ def cancella_voce_lista(voce_id: int) -> None:
 def aggiorna_voce_lista(voce_id: int, voce: VoceListaCreate) -> dict:
     conn = get_connection()
     existing = conn.execute(
-        "SELECT id FROM voci_lista_spesa WHERE id = ?", (voce_id,)
+        "SELECT id, prodotto_id FROM voci_lista_spesa WHERE id = ?", (voce_id,)
     ).fetchone()
     if existing is None:
         conn.close()
         raise HTTPException(status_code=404, detail="Voce non trovata")
-    prodotto_id = _trova_o_crea_prodotto(conn, voce.nome, voce.categoria, voce.unita_misura)
+    prodotto_id = _aggiorna_o_crea_prodotto(
+        conn, existing["prodotto_id"], voce.nome, voce.categoria, voce.unita_misura
+    )
     conn.execute(
         "UPDATE voci_lista_spesa"
         " SET prodotto_id = ?, quantita_desiderata = ?, note = ? WHERE id = ?",
@@ -232,7 +269,9 @@ def aggiorna_voce_dispensa(voce_id: int, voce: VoceDispensaCreate) -> dict:
         conn.close()
         raise HTTPException(status_code=404, detail="Voce non trovata")
 
-    prodotto_id = _trova_o_crea_prodotto(conn, voce.nome, voce.categoria, voce.unita_misura)
+    prodotto_id = _aggiorna_o_crea_prodotto(
+        conn, existing["prodotto_id"], voce.nome, voce.categoria, voce.unita_misura
+    )
 
     # Se il prodotto risolto esiste già in dispensa con un id diverso: fondi
     collision = conn.execute(

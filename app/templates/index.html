@@ -4,11 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lista della Spesa</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
   <main class="container">
-    <h1>🛒 Lista della Spesa</h1>
+    <h1>Lista della Spesa</h1>
 
     <nav class="tabs">
       <button class="tab-btn attiva" data-tab="lista">Lista</button>
@@ -19,13 +22,20 @@
     <section id="sezione-lista" class="sezione-tab attiva">
       <form id="form-lista">
         <div class="form-riga">
-          <input type="text" id="lista-nome" placeholder="Articolo" required>
+          <input type="text" id="lista-nome" list="prodotti-datalist" autocomplete="off" placeholder="Articolo" required>
           <input type="number" id="lista-qty" placeholder="Qtà" step="any" min="0.01" value="1" required>
-          <button type="submit">+</button>
+          <button type="submit" class="btn-add">+</button>
+        </div>
+        <div class="form-extra">
+          <select id="lista-categoria"></select>
+          <select id="lista-unita"></select>
         </div>
         <input type="text" id="lista-note" placeholder="Note (opzionale)" class="input-note">
       </form>
-      <button id="btn-fine-spesa" type="button" class="btn-fine-spesa">Fine spesa</button>
+      <div class="azioni">
+        <button id="btn-fine-spesa" type="button" class="btn-info">Fine spesa</button>
+        <button id="btn-cancella-lista" type="button" class="btn-pericolo">Cancella tutta la lista</button>
+      </div>
       <ul id="lista-articoli" class="lista-articoli"></ul>
       <p id="lista-vuota" class="messaggio-vuoto" hidden>Nessun articolo nella lista.</p>
     </section>
@@ -34,18 +44,26 @@
     <section id="sezione-dispensa" class="sezione-tab">
       <form id="form-dispensa">
         <div class="form-riga">
-          <input type="text" id="dispensa-nome" placeholder="Articolo" required>
+          <input type="text" id="dispensa-nome" list="prodotti-datalist" autocomplete="off" placeholder="Articolo" required>
           <input type="number" id="dispensa-qty" placeholder="Qtà" step="any" min="0" value="1" required>
-          <button type="submit">+</button>
+          <button type="submit" class="btn-add">+</button>
+        </div>
+        <div class="form-extra">
+          <select id="dispensa-categoria"></select>
+          <select id="dispensa-unita"></select>
+          <input type="date" id="dispensa-scadenza">
         </div>
         <input type="text" id="dispensa-note" placeholder="Note (opzionale)" class="input-note">
       </form>
-      <button id="btn-svuota-dispensa" type="button" class="btn-svuota-dispensa">Svuota dispensa</button>
+      <div class="azioni">
+        <button id="btn-svuota-dispensa" type="button" class="btn-pericolo">Svuota dispensa</button>
+      </div>
       <ul id="dispensa-articoli" class="lista-articoli"></ul>
       <p id="dispensa-vuota" class="messaggio-vuoto" hidden>Dispensa vuota.</p>
     </section>
   </main>
 
+  <datalist id="prodotti-datalist"></datalist>
   <div id="errore-toast" class="errore-toast" hidden></div>
 
   <script src="/static/script.js"></script>
