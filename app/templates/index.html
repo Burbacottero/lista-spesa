@@ -25,6 +25,7 @@
         </div>
         <input type="text" id="lista-note" placeholder="Note (opzionale)" class="input-note">
       </form>
+      <button id="btn-fine-spesa" type="button" class="btn-fine-spesa">Fine spesa</button>
       <ul id="lista-articoli" class="lista-articoli"></ul>
       <p id="lista-vuota" class="messaggio-vuoto" hidden>Nessun articolo nella lista.</p>
     </section>
@@ -39,10 +40,13 @@
         </div>
         <input type="text" id="dispensa-note" placeholder="Note (opzionale)" class="input-note">
       </form>
+      <button id="btn-svuota-dispensa" type="button" class="btn-svuota-dispensa">Svuota dispensa</button>
       <ul id="dispensa-articoli" class="lista-articoli"></ul>
       <p id="dispensa-vuota" class="messaggio-vuoto" hidden>Dispensa vuota.</p>
     </section>
   </main>
+
+  <div id="errore-toast" class="errore-toast" hidden></div>
 
   <script src="/static/script.js"></script>
 </body>

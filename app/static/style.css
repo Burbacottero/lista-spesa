@@ -176,6 +176,11 @@ h1 {
   color: #9aa5b1;
 }
 
+.articolo.comprato .info {
+  cursor: default;
+  opacity: 0.65;
+}
+
 .articolo input[type="checkbox"] {
   width: 20px;
   height: 20px;
@@ -183,21 +188,10 @@ h1 {
   flex-shrink: 0;
 }
 
-.btn-dispensa {
-  border: none;
-  background: none;
-  color: #2563eb;
-  font-size: 1.1rem;
-  cursor: pointer;
-  padding: 0.2rem 0.4rem;
-  border-radius: 6px;
-  line-height: 1;
-  flex-shrink: 0;
+.articolo input[type="checkbox"]:disabled {
+  cursor: default;
 }
 
-.btn-dispensa:hover {
-  background-color: #dbeafe;
-}
 
 .btn-elimina {
   border: none;
@@ -219,4 +213,148 @@ h1 {
   text-align: center;
   color: #9aa5b1;
   margin-top: 1rem;
+}
+
+/* Bottone Svuota dispensa */
+
+.btn-svuota-dispensa {
+  display: block;
+  width: 100%;
+  margin-bottom: 1rem;
+  padding: 0.55rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background-color: #d64545;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.btn-svuota-dispensa:hover {
+  background-color: #b91c1c;
+}
+
+/* Bottone Fine spesa */
+
+.btn-fine-spesa {
+  display: block;
+  width: 100%;
+  margin-bottom: 1rem;
+  padding: 0.55rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background-color: #f59e0b;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.btn-fine-spesa:hover {
+  background-color: #d97706;
+}
+
+/* Bottone Rimetti in lista (dispensa) */
+
+.btn-lista {
+  border: none;
+  background: none;
+  color: #16a34a;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.btn-lista:hover {
+  background-color: #dcfce7;
+}
+
+/* Form modifica inline dispensa */
+
+.form-inline-dispensa {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.form-inline-dispensa .input-edit-nome {
+  flex: 1 1 120px;
+  min-width: 0;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid #2563eb;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.form-inline-dispensa .input-edit-qty {
+  flex: 0 0 68px;
+  padding: 0.35rem 0.4rem;
+  border: 1px solid #cbd2d9;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.form-inline-dispensa .input-edit-note {
+  flex: 1 1 100px;
+  min-width: 0;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid #cbd2d9;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.btn-salva {
+  padding: 0.35rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  background-color: #16a34a;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-salva:hover {
+  background-color: #15803d;
+}
+
+.btn-annulla {
+  padding: 0.35rem 0.75rem;
+  border: 1px solid #cbd2d9;
+  border-radius: 6px;
+  background: none;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: #616e7c;
+}
+
+.btn-annulla:hover {
+  background-color: #f4f6f8;
+}
+
+/* Toast errore */
+
+.errore-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #d64545;
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  z-index: 1000;
+  white-space: nowrap;
 }

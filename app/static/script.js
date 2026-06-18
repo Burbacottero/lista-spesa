@@ -13,6 +13,15 @@ function fmtQty(n) {
   return Number.isInteger(n) ? String(n) : String(n);
 }
 
+// Utility: mostra errore visibile all'utente per 4 secondi
+function mostraErrore(msg) {
+  const toast = document.getElementById("errore-toast");
+  toast.textContent = msg;
+  toast.hidden = false;
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.hidden = true; }, 4000);
+}
+
 // ---- Lista della spesa ----
 
 async function caricaLista() {
@@ -36,11 +45,12 @@ function creaElementoLista(v) {
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
   checkbox.checked = v.comprato;
-  checkbox.addEventListener("change", () => toggleComprato(v.id));
+  checkbox.disabled = v.comprato;
+  checkbox.addEventListener("change", () => spostaInDispensa(v.id, checkbox));
 
   const info = document.createElement("div");
   info.className = "info";
-  info.addEventListener("click", () => toggleComprato(v.id));
+  if (!v.comprato) info.addEventListener("click", () => apriModificaLista(li, v));
 
   const nome = document.createElement("span");
   nome.className = "nome";
@@ -60,12 +70,6 @@ function creaElementoLista(v) {
     info.appendChild(nota);
   }
 
-  const btnDispensa = document.createElement("button");
-  btnDispensa.className = "btn-dispensa";
-  btnDispensa.textContent = "→";
-  btnDispensa.title = "Sposta in dispensa";
-  btnDispensa.addEventListener("click", () => spostaInDispensa(v.id));
-
   const btnElimina = document.createElement("button");
   btnElimina.className = "btn-elimina";
   btnElimina.textContent = "✕";
@@ -74,26 +78,101 @@ function creaElementoLista(v) {
 
   li.appendChild(checkbox);
   li.appendChild(info);
-  li.appendChild(btnDispensa);
   li.appendChild(btnElimina);
 
   return li;
 }
 
-async function toggleComprato(id) {
-  await fetch(`/api/lista/${id}/comprato`, { method: "PATCH" });
-  await caricaLista();
-}
-
 async function eliminaVoceLista(id) {
-  await fetch(`/api/lista/${id}`, { method: "DELETE" });
+  const risposta = await fetch(`/api/lista/${id}`, { method: "DELETE" });
+  if (!risposta.ok) {
+    mostraErrore("Errore durante l'eliminazione.");
+    return;
+  }
   await caricaLista();
 }
 
-async function spostaInDispensa(id) {
-  await fetch(`/api/lista/${id}/sposta-in-dispensa`, { method: "POST" });
+async function spostaInDispensa(id, checkbox) {
+  checkbox.disabled = true;
+  const risposta = await fetch(`/api/lista/${id}/sposta-in-dispensa`, { method: "POST" });
+  if (!risposta.ok) {
+    checkbox.disabled = false;
+    checkbox.checked = false;
+    mostraErrore("Errore durante il trasferimento in dispensa.");
+    return;
+  }
   await Promise.all([caricaLista(), caricaDispensa()]);
 }
+
+function apriModificaLista(li, v) {
+  li.innerHTML = "";
+
+  const form = document.createElement("form");
+  form.className = "form-inline-dispensa";
+
+  const inputNome = document.createElement("input");
+  inputNome.type = "text";
+  inputNome.className = "input-edit-nome";
+  inputNome.value = v.nome;
+  inputNome.required = true;
+
+  const inputQty = document.createElement("input");
+  inputQty.type = "number";
+  inputQty.className = "input-edit-qty";
+  inputQty.value = v.quantita_desiderata;
+  inputQty.step = "any";
+  inputQty.min = "0.01";
+  inputQty.required = true;
+
+  const inputNote = document.createElement("input");
+  inputNote.type = "text";
+  inputNote.className = "input-edit-note";
+  inputNote.value = v.note || "";
+  inputNote.placeholder = "Note";
+
+  const btnSalva = document.createElement("button");
+  btnSalva.type = "submit";
+  btnSalva.className = "btn-salva";
+  btnSalva.textContent = "Salva";
+
+  const btnAnnulla = document.createElement("button");
+  btnAnnulla.type = "button";
+  btnAnnulla.className = "btn-annulla";
+  btnAnnulla.textContent = "Annulla";
+  btnAnnulla.addEventListener("click", () => li.replaceWith(creaElementoLista(v)));
+
+  form.append(inputNome, inputQty, inputNote, btnSalva, btnAnnulla);
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const nome = inputNome.value.trim();
+    const qty = parseFloat(inputQty.value);
+    if (!nome || isNaN(qty)) return;
+    const risposta = await fetch(`/api/lista/${v.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nome, quantita_desiderata: qty, note: inputNote.value.trim() || null }),
+    });
+    if (!risposta.ok) {
+      mostraErrore("Errore durante il salvataggio.");
+      return;
+    }
+    await caricaLista();
+  });
+
+  li.appendChild(form);
+  inputNome.focus();
+}
+
+document.getElementById("btn-fine-spesa").addEventListener("click", async () => {
+  if (!confirm("Confermi di aver finito la spesa? Gli articoli comprati verranno rimossi dalla lista.")) return;
+  const risposta = await fetch("/api/lista/comprati", { method: "DELETE" });
+  if (!risposta.ok) {
+    mostraErrore("Errore durante la fine spesa.");
+    return;
+  }
+  await caricaLista();
+});
 
 document.getElementById("form-lista").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -102,11 +181,15 @@ document.getElementById("form-lista").addEventListener("submit", async (e) => {
   const note = document.getElementById("lista-note").value.trim() || null;
   if (!nome || isNaN(qty)) return;
 
-  await fetch("/api/lista", {
+  const risposta = await fetch("/api/lista", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ nome, quantita_desiderata: qty, note }),
   });
+  if (!risposta.ok) {
+    mostraErrore("Errore durante l'aggiunta dell'articolo.");
+    return;
+  }
 
   document.getElementById("lista-nome").value = "";
   document.getElementById("lista-qty").value = "1";
@@ -137,6 +220,7 @@ function creaElementoDispensa(v) {
 
   const info = document.createElement("div");
   info.className = "info";
+  info.addEventListener("click", () => apriModificaDispensa(li, v));
 
   const nome = document.createElement("span");
   nome.className = "nome";
@@ -156,6 +240,12 @@ function creaElementoDispensa(v) {
     info.appendChild(nota);
   }
 
+  const btnLista = document.createElement("button");
+  btnLista.className = "btn-lista";
+  btnLista.textContent = "+";
+  btnLista.title = "Rimetti in lista";
+  btnLista.addEventListener("click", () => rimmettiInLista(v.id, btnLista));
+
   const btnElimina = document.createElement("button");
   btnElimina.className = "btn-elimina";
   btnElimina.textContent = "✕";
@@ -163,15 +253,103 @@ function creaElementoDispensa(v) {
   btnElimina.addEventListener("click", () => eliminaVoceDispensa(v.id));
 
   li.appendChild(info);
+  li.appendChild(btnLista);
   li.appendChild(btnElimina);
 
   return li;
 }
 
+async function rimmettiInLista(id, btn) {
+  btn.disabled = true;
+  const risposta = await fetch(`/api/dispensa/${id}/aggiungi-in-lista`, { method: "POST" });
+  if (!risposta.ok) {
+    btn.disabled = false;
+    mostraErrore("Errore durante l'aggiunta in lista.");
+    return;
+  }
+  btn.textContent = "✓";
+  setTimeout(() => { btn.textContent = "+"; btn.disabled = false; }, 1500);
+  if (risposta.status === 201) await caricaLista();
+}
+
+function apriModificaDispensa(li, v) {
+  li.innerHTML = "";
+
+  const form = document.createElement("form");
+  form.className = "form-inline-dispensa";
+
+  const inputNome = document.createElement("input");
+  inputNome.type = "text";
+  inputNome.className = "input-edit-nome";
+  inputNome.value = v.nome;
+  inputNome.required = true;
+
+  const inputQty = document.createElement("input");
+  inputQty.type = "number";
+  inputQty.className = "input-edit-qty";
+  inputQty.value = v.quantita_disponibile;
+  inputQty.step = "any";
+  inputQty.min = "0";
+  inputQty.required = true;
+
+  const inputNote = document.createElement("input");
+  inputNote.type = "text";
+  inputNote.className = "input-edit-note";
+  inputNote.value = v.note || "";
+  inputNote.placeholder = "Note";
+
+  const btnSalva = document.createElement("button");
+  btnSalva.type = "submit";
+  btnSalva.className = "btn-salva";
+  btnSalva.textContent = "Salva";
+
+  const btnAnnulla = document.createElement("button");
+  btnAnnulla.type = "button";
+  btnAnnulla.className = "btn-annulla";
+  btnAnnulla.textContent = "Annulla";
+  btnAnnulla.addEventListener("click", () => li.replaceWith(creaElementoDispensa(v)));
+
+  form.append(inputNome, inputQty, inputNote, btnSalva, btnAnnulla);
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const nome = inputNome.value.trim();
+    const qty = parseFloat(inputQty.value);
+    if (!nome || isNaN(qty)) return;
+    const risposta = await fetch(`/api/dispensa/${v.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nome, quantita_disponibile: qty, note: inputNote.value.trim() || null }),
+    });
+    if (!risposta.ok) {
+      mostraErrore("Errore durante il salvataggio.");
+      return;
+    }
+    await caricaDispensa();
+  });
+
+  li.appendChild(form);
+  inputNome.focus();
+}
+
 async function eliminaVoceDispensa(id) {
-  await fetch(`/api/dispensa/${id}`, { method: "DELETE" });
+  const risposta = await fetch(`/api/dispensa/${id}`, { method: "DELETE" });
+  if (!risposta.ok) {
+    mostraErrore("Errore durante l'eliminazione.");
+    return;
+  }
   await caricaDispensa();
 }
+
+document.getElementById("btn-svuota-dispensa").addEventListener("click", async () => {
+  if (!confirm("Sei sicuro di voler cancellare TUTTA la dispensa?\n\nQuesta azione è irreversibile e non può essere annullata.")) return;
+  const risposta = await fetch("/api/dispensa", { method: "DELETE" });
+  if (!risposta.ok) {
+    mostraErrore("Errore durante lo svuotamento della dispensa.");
+    return;
+  }
+  await caricaDispensa();
+});
 
 document.getElementById("form-dispensa").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -180,11 +358,15 @@ document.getElementById("form-dispensa").addEventListener("submit", async (e) =>
   const note = document.getElementById("dispensa-note").value.trim() || null;
   if (!nome || isNaN(qty)) return;
 
-  await fetch("/api/dispensa", {
+  const risposta = await fetch("/api/dispensa", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ nome, quantita_disponibile: qty, note }),
   });
+  if (!risposta.ok) {
+    mostraErrore("Errore durante l'aggiunta dell'articolo.");
+    return;
+  }
 
   document.getElementById("dispensa-nome").value = "";
   document.getElementById("dispensa-qty").value = "1";
