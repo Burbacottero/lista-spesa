@@ -10,15 +10,38 @@
   <main class="container">
     <h1>🛒 Lista della Spesa</h1>
 
-    <form id="form-articolo" class="form-articolo">
-      <input type="text" id="input-nome" placeholder="Nome articolo" required>
-      <input type="text" id="input-quantita" placeholder="Quantità" required>
-      <button type="submit">Aggiungi</button>
-    </form>
+    <nav class="tabs">
+      <button class="tab-btn attiva" data-tab="lista">Lista</button>
+      <button class="tab-btn" data-tab="dispensa">Dispensa</button>
+    </nav>
 
-    <ul id="lista-articoli" class="lista-articoli"></ul>
+    <!-- Sezione Lista -->
+    <section id="sezione-lista" class="sezione-tab attiva">
+      <form id="form-lista">
+        <div class="form-riga">
+          <input type="text" id="lista-nome" placeholder="Articolo" required>
+          <input type="number" id="lista-qty" placeholder="Qtà" step="any" min="0.01" value="1" required>
+          <button type="submit">+</button>
+        </div>
+        <input type="text" id="lista-note" placeholder="Note (opzionale)" class="input-note">
+      </form>
+      <ul id="lista-articoli" class="lista-articoli"></ul>
+      <p id="lista-vuota" class="messaggio-vuoto" hidden>Nessun articolo nella lista.</p>
+    </section>
 
-    <p id="messaggio-vuoto" class="messaggio-vuoto" hidden>Nessun articolo nella lista.</p>
+    <!-- Sezione Dispensa -->
+    <section id="sezione-dispensa" class="sezione-tab">
+      <form id="form-dispensa">
+        <div class="form-riga">
+          <input type="text" id="dispensa-nome" placeholder="Articolo" required>
+          <input type="number" id="dispensa-qty" placeholder="Qtà" step="any" min="0" value="1" required>
+          <button type="submit">+</button>
+        </div>
+        <input type="text" id="dispensa-note" placeholder="Note (opzionale)" class="input-note">
+      </form>
+      <ul id="dispensa-articoli" class="lista-articoli"></ul>
+      <p id="dispensa-vuota" class="messaggio-vuoto" hidden>Dispensa vuota.</p>
+    </section>
   </main>
 
   <script src="/static/script.js"></script>

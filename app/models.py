@@ -1,11 +1,22 @@
 from pydantic import BaseModel, Field
 
 
-class ArticoloCreate(BaseModel):
+class VoceListaCreate(BaseModel):
     nome: str = Field(min_length=1, max_length=200)
-    quantita: str = Field(min_length=1, max_length=50)
+    quantita_desiderata: float = Field(gt=0)
+    note: str | None = None
 
 
-class Articolo(ArticoloCreate):
+class VoceLista(VoceListaCreate):
     id: int
     comprato: bool
+
+
+class VoceDispensaCreate(BaseModel):
+    nome: str = Field(min_length=1, max_length=200)
+    quantita_disponibile: float = Field(ge=0)
+    note: str | None = None
+
+
+class VoceDispensa(VoceDispensaCreate):
+    id: int
