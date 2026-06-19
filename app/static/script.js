@@ -65,6 +65,26 @@ function calcolaBadgeScadenza(data_scadenza) {
   return null;
 }
 
+// --- Auth: redirect a /login su risposta 401 ---
+
+async function apiFetch(url, opts = {}) {
+  const r = await fetch(url, opts);
+  if (r.status === 401) {
+    window.location.href = '/login';
+    return null;
+  }
+  return r;
+}
+
+// --- Utente corrente ---
+
+async function caricaUtente() {
+  const r = await apiFetch('/api/me');
+  if (!r || !r.ok) return;
+  const u = await r.json();
+  document.getElementById('saluto-utente').textContent = `Ciao, ${u.nome_visualizzato}`;
+}
+
 // --- Autocomplete ---
 
 let _acTimer = null;
@@ -85,9 +105,9 @@ function aggiornaAutocomplete(inputEl, catSel, unitaSel) {
 
   _acTimer = setTimeout(async () => {
     let r;
-    try { r = await fetch(`/api/prodotti?search=${encodeURIComponent(val)}`); }
+    try { r = await apiFetch(`/api/prodotti?search=${encodeURIComponent(val)}`); }
     catch { return; }
-    if (!r.ok) return;
+    if (!r || !r.ok) return;
 
     const prodotti = await r.json();
     const datalist = document.getElementById('prodotti-datalist');
@@ -157,10 +177,24 @@ function groupByCategoria(voci) {
   return map;
 }
 
+// --- Etichetta autore discreta ---
+
+function creaEtichettaAutore(v) {
+  const nome = v.comprato_da_nome ?? v.aggiunto_da_nome;
+  if (!nome) return null;
+  const span = document.createElement('span');
+  span.className = 'autore';
+  span.textContent = v.comprato_da_nome
+    ? `Comprato da ${v.comprato_da_nome}`
+    : `Aggiunto da ${v.aggiunto_da_nome}`;
+  return span;
+}
+
 // ====== LISTA DELLA SPESA ======
 
 async function caricaLista() {
-  const r = await fetch('/api/lista');
+  const r = await apiFetch('/api/lista');
+  if (!r) return;
   renderLista(await r.json());
 }
 
@@ -228,6 +262,9 @@ function creaElementoLista(v) {
   info.appendChild(nome);
   info.appendChild(meta);
 
+  const autore = creaEtichettaAutore(v);
+  if (autore) info.appendChild(autore);
+
   const btnElimina = document.createElement('button');
   btnElimina.className = 'btn-elimina';
   btnElimina.textContent = '✕';
@@ -242,14 +279,16 @@ function creaElementoLista(v) {
 }
 
 async function eliminaVoceLista(id) {
-  const r = await fetch(`/api/lista/${id}`, { method: 'DELETE' });
+  const r = await apiFetch(`/api/lista/${id}`, { method: 'DELETE' });
+  if (!r) return;
   if (!r.ok) { mostraErrore("Errore durante l'eliminazione."); return; }
   await caricaLista();
 }
 
 async function spostaInDispensa(id, checkbox) {
   checkbox.disabled = true;
-  const r = await fetch(`/api/lista/${id}/sposta-in-dispensa`, { method: 'POST' });
+  const r = await apiFetch(`/api/lista/${id}/sposta-in-dispensa`, { method: 'POST' });
+  if (!r) return;
   if (!r.ok) {
     checkbox.disabled = false;
     checkbox.checked = false;
@@ -308,7 +347,7 @@ function apriModificaLista(li, v) {
     const nome = inputNome.value.trim();
     const qty  = parseFloat(inputQty.value);
     if (!nome || isNaN(qty)) return;
-    const r = await fetch(`/api/lista/${v.id}`, {
+    const r = await apiFetch(`/api/lista/${v.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -319,6 +358,7 @@ function apriModificaLista(li, v) {
         note: inputNote.value.trim() || null,
       }),
     });
+    if (!r) return;
     if (!r.ok) { mostraErrore('Errore durante il salvataggio.'); return; }
     await caricaLista();
   });
@@ -329,14 +369,16 @@ function apriModificaLista(li, v) {
 
 document.getElementById('btn-fine-spesa').addEventListener('click', async () => {
   if (!confirm('Confermi di aver finito la spesa? Gli articoli comprati verranno rimossi dalla lista.')) return;
-  const r = await fetch('/api/lista/comprati', { method: 'DELETE' });
+  const r = await apiFetch('/api/lista/comprati', { method: 'DELETE' });
+  if (!r) return;
   if (!r.ok) { mostraErrore('Errore durante la fine spesa.'); return; }
   await caricaLista();
 });
 
 document.getElementById('btn-cancella-lista').addEventListener('click', async () => {
   if (!confirm('Sei sicuro di voler cancellare TUTTA la lista?\n\nVerranno eliminati tutti gli articoli, compresi quelli non ancora comprati. Questa azione è irreversibile.')) return;
-  const r = await fetch('/api/lista', { method: 'DELETE' });
+  const r = await apiFetch('/api/lista', { method: 'DELETE' });
+  if (!r) return;
   if (!r.ok) { mostraErrore('Errore durante la cancellazione della lista.'); return; }
   await caricaLista();
 });
@@ -348,7 +390,7 @@ document.getElementById('form-lista').addEventListener('submit', async e => {
   const note = document.getElementById('lista-note').value.trim() || null;
   if (!nome || isNaN(qty)) return;
 
-  const r = await fetch('/api/lista', {
+  const r = await apiFetch('/api/lista', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -359,6 +401,7 @@ document.getElementById('form-lista').addEventListener('submit', async e => {
       note,
     }),
   });
+  if (!r) return;
   if (!r.ok) { mostraErrore("Errore durante l'aggiunta dell'articolo."); return; }
 
   document.getElementById('lista-nome').value = '';
@@ -382,7 +425,8 @@ document.getElementById('lista-nome').addEventListener('input', () => {
 // ====== DISPENSA ======
 
 async function caricaDispensa() {
-  const r = await fetch('/api/dispensa');
+  const r = await apiFetch('/api/dispensa');
+  if (!r) return;
   renderDispensa(await r.json());
 }
 
@@ -452,6 +496,9 @@ function creaElementoDispensa(v) {
   info.appendChild(nome);
   info.appendChild(meta);
 
+  const autore = creaEtichettaAutore(v);
+  if (autore) info.appendChild(autore);
+
   const btnLista = document.createElement('button');
   btnLista.className = 'btn-lista';
   btnLista.textContent = '+';
@@ -473,7 +520,8 @@ function creaElementoDispensa(v) {
 
 async function rimmettiInLista(id, btn) {
   btn.disabled = true;
-  const r = await fetch(`/api/dispensa/${id}/aggiungi-in-lista`, { method: 'POST' });
+  const r = await apiFetch(`/api/dispensa/${id}/aggiungi-in-lista`, { method: 'POST' });
+  if (!r) return;
   if (!r.ok) {
     btn.disabled = false;
     mostraErrore("Errore durante l'aggiunta in lista.");
@@ -485,7 +533,8 @@ async function rimmettiInLista(id, btn) {
 }
 
 async function eliminaVoceDispensa(id) {
-  const r = await fetch(`/api/dispensa/${id}`, { method: 'DELETE' });
+  const r = await apiFetch(`/api/dispensa/${id}`, { method: 'DELETE' });
+  if (!r) return;
   if (!r.ok) { mostraErrore("Errore durante l'eliminazione."); return; }
   await caricaDispensa();
 }
@@ -543,7 +592,7 @@ function apriModificaDispensa(li, v) {
     const nome = inputNome.value.trim();
     const qty  = parseFloat(inputQty.value);
     if (!nome || isNaN(qty)) return;
-    const r = await fetch(`/api/dispensa/${v.id}`, {
+    const r = await apiFetch(`/api/dispensa/${v.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -555,6 +604,7 @@ function apriModificaDispensa(li, v) {
         note: inputNote.value.trim() || null,
       }),
     });
+    if (!r) return;
     if (!r.ok) { mostraErrore('Errore durante il salvataggio.'); return; }
     await caricaDispensa();
   });
@@ -565,7 +615,8 @@ function apriModificaDispensa(li, v) {
 
 document.getElementById('btn-svuota-dispensa').addEventListener('click', async () => {
   if (!confirm('Sei sicuro di voler cancellare TUTTA la dispensa?\n\nQuesta azione è irreversibile.')) return;
-  const r = await fetch('/api/dispensa', { method: 'DELETE' });
+  const r = await apiFetch('/api/dispensa', { method: 'DELETE' });
+  if (!r) return;
   if (!r.ok) { mostraErrore('Errore durante lo svuotamento della dispensa.'); return; }
   await caricaDispensa();
 });
@@ -578,7 +629,7 @@ document.getElementById('form-dispensa').addEventListener('submit', async e => {
   const scad = document.getElementById('dispensa-scadenza').value || null;
   if (!nome || isNaN(qty)) return;
 
-  const r = await fetch('/api/dispensa', {
+  const r = await apiFetch('/api/dispensa', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -590,6 +641,7 @@ document.getElementById('form-dispensa').addEventListener('submit', async e => {
       note,
     }),
   });
+  if (!r) return;
   if (!r.ok) { mostraErrore("Errore durante l'aggiunta dell'articolo."); return; }
 
   document.getElementById('dispensa-nome').value     = '';
@@ -614,5 +666,6 @@ document.getElementById('dispensa-nome').addEventListener('input', () => {
 // --- Init ---
 
 populateSelects();
+caricaUtente();
 caricaLista();
 caricaDispensa();

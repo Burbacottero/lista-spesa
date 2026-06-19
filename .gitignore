@@ -3,3 +3,4 @@ __pycache__/
 .venv/
 venv/
 lista_spesa.db
+.env

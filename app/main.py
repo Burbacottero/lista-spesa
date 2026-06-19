@@ -1,14 +1,19 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query, Response
-from fastapi.responses import FileResponse
+from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request, Response
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.auth import COOKIE_NAME, crea_token, leggi_utente_id, richiedi_auth, verifica_password
 from app.database import get_connection, init_db
 from app.models import (
     CATEGORIE,
     UNITA_MISURA,
     Prodotto,
+    Utente,
     VoceDispensa,
     VoceDispensaCreate,
     VoceLista,
@@ -75,23 +80,85 @@ def _aggiorna_o_crea_prodotto(
 # Query base con JOIN — usata da tutti gli endpoint di lettura
 _LISTA_SELECT = """
     SELECT vls.id, vls.prodotto_id, p.nome, p.categoria, p.unita_misura,
-           vls.quantita_desiderata, vls.comprato, vls.note
+           vls.quantita_desiderata, vls.comprato, vls.note,
+           ua.nome_visualizzato AS aggiunto_da_nome,
+           uc.nome_visualizzato AS comprato_da_nome
     FROM voci_lista_spesa vls
     JOIN prodotti p ON p.id = vls.prodotto_id
+    LEFT JOIN utenti ua ON ua.id = vls.aggiunto_da
+    LEFT JOIN utenti uc ON uc.id = vls.comprato_da
 """
 
 _DISPENSA_SELECT = """
     SELECT vd.id, vd.prodotto_id, p.nome, p.categoria, p.unita_misura,
-           vd.quantita_disponibile, vd.data_scadenza, vd.note
+           vd.quantita_disponibile, vd.data_scadenza, vd.note,
+           ua.nome_visualizzato AS aggiunto_da_nome,
+           uc.nome_visualizzato AS comprato_da_nome
     FROM voci_dispensa vd
     JOIN prodotti p ON p.id = vd.prodotto_id
+    LEFT JOIN utenti ua ON ua.id = vd.aggiunto_da
+    LEFT JOIN utenti uc ON uc.id = vd.comprato_da
 """
+
+
+# --- Auth endpoints ---
+
+@app.get("/login")
+def serve_login(request: Request) -> Response:
+    if leggi_utente_id(request) is not None:
+        return RedirectResponse("/", status_code=302)
+    return FileResponse(BASE_DIR / "templates" / "login.html")
+
+
+@app.post("/login")
+async def login_post(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+) -> Response:
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT id, password_hash FROM utenti WHERE username = ? COLLATE NOCASE",
+        (username,),
+    ).fetchone()
+    conn.close()
+    if row is None or not verifica_password(password, row["password_hash"]):
+        return RedirectResponse("/login?err=1", status_code=303)
+    token = crea_token(row["id"])
+    resp = RedirectResponse("/", status_code=303)
+    resp.set_cookie(
+        COOKIE_NAME,
+        token,
+        httponly=True,
+        samesite="lax",
+        max_age=30 * 24 * 3600,
+    )
+    return resp
+
+
+@app.post("/logout")
+def logout() -> Response:
+    resp = RedirectResponse("/login", status_code=303)
+    resp.delete_cookie(COOKIE_NAME)
+    return resp
+
+
+@app.get("/api/me", response_model=Utente)
+def get_me(utente_id: int = Depends(richiedi_auth)) -> dict:
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT id, nome_visualizzato FROM utenti WHERE id = ?", (utente_id,)
+    ).fetchone()
+    conn.close()
+    if row is None:
+        raise HTTPException(status_code=401, detail="Utente non trovato")
+    return dict(row)
 
 
 # --- Lista della spesa ---
 
 @app.get("/api/lista", response_model=list[VoceLista])
-def get_lista() -> list[dict]:
+def get_lista(utente_id: int = Depends(richiedi_auth)) -> list[dict]:
     conn = get_connection()
     rows = conn.execute(
         _LISTA_SELECT + " ORDER BY p.categoria, p.nome"
@@ -101,13 +168,13 @@ def get_lista() -> list[dict]:
 
 
 @app.post("/api/lista", response_model=VoceLista, status_code=201)
-def crea_voce_lista(voce: VoceListaCreate) -> dict:
+def crea_voce_lista(voce: VoceListaCreate, utente_id: int = Depends(richiedi_auth)) -> dict:
     conn = get_connection()
     prodotto_id = _trova_o_crea_prodotto(conn, voce.nome, voce.categoria, voce.unita_misura)
     cursor = conn.execute(
-        "INSERT INTO voci_lista_spesa (prodotto_id, quantita_desiderata, comprato, note)"
-        " VALUES (?, ?, 0, ?)",
-        (prodotto_id, voce.quantita_desiderata, voce.note),
+        "INSERT INTO voci_lista_spesa (prodotto_id, quantita_desiderata, comprato, note, aggiunto_da)"
+        " VALUES (?, ?, 0, ?, ?)",
+        (prodotto_id, voce.quantita_desiderata, voce.note, utente_id),
     )
     conn.commit()
     row = conn.execute(
@@ -118,7 +185,7 @@ def crea_voce_lista(voce: VoceListaCreate) -> dict:
 
 
 @app.delete("/api/lista", status_code=200)
-def cancella_lista_intera() -> dict:
+def cancella_lista_intera(utente_id: int = Depends(richiedi_auth)) -> dict:
     conn = get_connection()
     result = conn.execute("DELETE FROM voci_lista_spesa")
     conn.commit()
@@ -127,7 +194,7 @@ def cancella_lista_intera() -> dict:
 
 
 @app.delete("/api/lista/comprati", status_code=200)
-def cancella_comprati() -> dict:
+def cancella_comprati(utente_id: int = Depends(richiedi_auth)) -> dict:
     conn = get_connection()
     result = conn.execute("DELETE FROM voci_lista_spesa WHERE comprato = 1")
     conn.commit()
@@ -136,7 +203,7 @@ def cancella_comprati() -> dict:
 
 
 @app.delete("/api/lista/{voce_id}", status_code=204)
-def cancella_voce_lista(voce_id: int) -> None:
+def cancella_voce_lista(voce_id: int, utente_id: int = Depends(richiedi_auth)) -> None:
     conn = get_connection()
     row = conn.execute(
         "SELECT id FROM voci_lista_spesa WHERE id = ?", (voce_id,)
@@ -150,7 +217,9 @@ def cancella_voce_lista(voce_id: int) -> None:
 
 
 @app.put("/api/lista/{voce_id}", response_model=VoceLista)
-def aggiorna_voce_lista(voce_id: int, voce: VoceListaCreate) -> dict:
+def aggiorna_voce_lista(
+    voce_id: int, voce: VoceListaCreate, utente_id: int = Depends(richiedi_auth)
+) -> dict:
     conn = get_connection()
     existing = conn.execute(
         "SELECT id, prodotto_id FROM voci_lista_spesa WHERE id = ?", (voce_id,)
@@ -179,7 +248,9 @@ def aggiorna_voce_lista(voce_id: int, voce: VoceListaCreate) -> dict:
     response_model=VoceDispensa,
     status_code=201,
 )
-def sposta_in_dispensa(voce_id: int, response: Response) -> dict:
+def sposta_in_dispensa(
+    voce_id: int, response: Response, utente_id: int = Depends(richiedi_auth)
+) -> dict:
     conn = get_connection()
     voce = conn.execute(
         "SELECT * FROM voci_lista_spesa WHERE id = ?", (voce_id,)
@@ -216,12 +287,16 @@ def sposta_in_dispensa(voce_id: int, response: Response) -> dict:
         dispensa_id = existing["id"]
     else:
         cursor = conn.execute(
-            "INSERT INTO voci_dispensa (prodotto_id, quantita_disponibile) VALUES (?, ?)",
-            (prodotto_id, voce["quantita_desiderata"]),
+            "INSERT INTO voci_dispensa (prodotto_id, quantita_disponibile, aggiunto_da)"
+            " VALUES (?, ?, ?)",
+            (prodotto_id, voce["quantita_desiderata"], utente_id),
         )
         dispensa_id = cursor.lastrowid
 
-    conn.execute("UPDATE voci_lista_spesa SET comprato = 1 WHERE id = ?", (voce_id,))
+    conn.execute(
+        "UPDATE voci_lista_spesa SET comprato = 1, comprato_da = ? WHERE id = ?",
+        (utente_id, voce_id),
+    )
     conn.commit()
     row = conn.execute(
         _DISPENSA_SELECT + " WHERE vd.id = ?", (dispensa_id,)
@@ -233,7 +308,7 @@ def sposta_in_dispensa(voce_id: int, response: Response) -> dict:
 # --- Dispensa ---
 
 @app.get("/api/dispensa", response_model=list[VoceDispensa])
-def get_dispensa() -> list[dict]:
+def get_dispensa(utente_id: int = Depends(richiedi_auth)) -> list[dict]:
     conn = get_connection()
     rows = conn.execute(
         _DISPENSA_SELECT + " ORDER BY p.categoria, p.nome"
@@ -243,13 +318,14 @@ def get_dispensa() -> list[dict]:
 
 
 @app.post("/api/dispensa", response_model=VoceDispensa, status_code=201)
-def crea_voce_dispensa(voce: VoceDispensaCreate) -> dict:
+def crea_voce_dispensa(voce: VoceDispensaCreate, utente_id: int = Depends(richiedi_auth)) -> dict:
     conn = get_connection()
     prodotto_id = _trova_o_crea_prodotto(conn, voce.nome, voce.categoria, voce.unita_misura)
     cursor = conn.execute(
-        "INSERT INTO voci_dispensa (prodotto_id, quantita_disponibile, data_scadenza, note)"
-        " VALUES (?, ?, ?, ?)",
-        (prodotto_id, voce.quantita_disponibile, voce.data_scadenza, voce.note),
+        "INSERT INTO voci_dispensa"
+        " (prodotto_id, quantita_disponibile, data_scadenza, note, aggiunto_da)"
+        " VALUES (?, ?, ?, ?, ?)",
+        (prodotto_id, voce.quantita_disponibile, voce.data_scadenza, voce.note, utente_id),
     )
     conn.commit()
     row = conn.execute(
@@ -260,7 +336,9 @@ def crea_voce_dispensa(voce: VoceDispensaCreate) -> dict:
 
 
 @app.put("/api/dispensa/{voce_id}", response_model=VoceDispensa)
-def aggiorna_voce_dispensa(voce_id: int, voce: VoceDispensaCreate) -> dict:
+def aggiorna_voce_dispensa(
+    voce_id: int, voce: VoceDispensaCreate, utente_id: int = Depends(richiedi_auth)
+) -> dict:
     conn = get_connection()
     existing = conn.execute(
         "SELECT * FROM voci_dispensa WHERE id = ?", (voce_id,)
@@ -309,7 +387,9 @@ def aggiorna_voce_dispensa(voce_id: int, voce: VoceDispensaCreate) -> dict:
     response_model=VoceLista,
     status_code=201,
 )
-def aggiungi_in_lista(voce_id: int, response: Response) -> dict:
+def aggiungi_in_lista(
+    voce_id: int, response: Response, utente_id: int = Depends(richiedi_auth)
+) -> dict:
     conn = get_connection()
     voce_dispensa = conn.execute(
         "SELECT * FROM voci_dispensa WHERE id = ?", (voce_id,)
@@ -334,9 +414,9 @@ def aggiungi_in_lista(voce_id: int, response: Response) -> dict:
         return dict(row)
 
     cursor = conn.execute(
-        "INSERT INTO voci_lista_spesa (prodotto_id, quantita_desiderata, comprato)"
-        " VALUES (?, 1, 0)",
-        (prodotto_id,),
+        "INSERT INTO voci_lista_spesa (prodotto_id, quantita_desiderata, comprato, aggiunto_da)"
+        " VALUES (?, 1, 0, ?)",
+        (prodotto_id, utente_id),
     )
     conn.commit()
     row = conn.execute(
@@ -347,7 +427,7 @@ def aggiungi_in_lista(voce_id: int, response: Response) -> dict:
 
 
 @app.delete("/api/dispensa", status_code=200)
-def svuota_dispensa() -> dict:
+def svuota_dispensa(utente_id: int = Depends(richiedi_auth)) -> dict:
     conn = get_connection()
     result = conn.execute("DELETE FROM voci_dispensa")
     conn.commit()
@@ -356,7 +436,7 @@ def svuota_dispensa() -> dict:
 
 
 @app.delete("/api/dispensa/{voce_id}", status_code=204)
-def cancella_voce_dispensa(voce_id: int) -> None:
+def cancella_voce_dispensa(voce_id: int, utente_id: int = Depends(richiedi_auth)) -> None:
     conn = get_connection()
     row = conn.execute(
         "SELECT id FROM voci_dispensa WHERE id = ?", (voce_id,)
@@ -372,7 +452,9 @@ def cancella_voce_dispensa(voce_id: int) -> None:
 # --- Catalogo prodotti (autocomplete + metadati) ---
 
 @app.get("/api/prodotti", response_model=list[Prodotto])
-def cerca_prodotti(search: str = Query(default="")) -> list[dict]:
+def cerca_prodotti(
+    search: str = Query(default=""), utente_id: int = Depends(richiedi_auth)
+) -> list[dict]:
     if not search.strip():
         return []
     conn = get_connection()
@@ -386,7 +468,7 @@ def cerca_prodotti(search: str = Query(default="")) -> list[dict]:
 
 
 @app.get("/api/categorie")
-def get_categorie() -> dict:
+def get_categorie(utente_id: int = Depends(richiedi_auth)) -> dict:
     return {
         key: {"emoji": emoji, "label": label}
         for key, (emoji, label) in CATEGORIE.items()
@@ -397,5 +479,7 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 
 @app.get("/")
-def serve_index() -> FileResponse:
+def serve_index(request: Request) -> Response:
+    if leggi_utente_id(request) is None:
+        return RedirectResponse("/login", status_code=302)
     return FileResponse(BASE_DIR / "templates" / "index.html")

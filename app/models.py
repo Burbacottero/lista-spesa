@@ -45,6 +45,11 @@ class VoceListaCreate(BaseModel):
     note: str | None = None
 
 
+class Utente(BaseModel):
+    id: int
+    nome_visualizzato: str
+
+
 class VoceLista(BaseModel):
     id: int
     prodotto_id: int
@@ -54,6 +59,8 @@ class VoceLista(BaseModel):
     quantita_desiderata: float
     comprato: bool
     note: str | None
+    aggiunto_da_nome: str | None = None
+    comprato_da_nome: str | None = None
 
 
 class VoceDispensaCreate(BaseModel):
@@ -74,3 +81,5 @@ class VoceDispensa(BaseModel):
     quantita_disponibile: float
     data_scadenza: str | None
     note: str | None
+    aggiunto_da_nome: str | None = None
+    comprato_da_nome: str | None = None

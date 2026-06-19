@@ -514,3 +514,89 @@ h1 {
   white-space: nowrap;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
 }
+
+/* --- Header utente (index) --- */
+
+.header-utente {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+  color: var(--text-sec);
+}
+
+.btn-logout {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: none;
+  font-family: inherit;
+  font-size: 0.8rem;
+  color: var(--text-sec);
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-logout:hover { background: var(--bg); color: var(--text); }
+
+.autore {
+  display: block;
+  font-size: 0.72rem;
+  color: #9CA3AF;
+  margin-top: 0.15rem;
+}
+
+/* --- Pagina login --- */
+
+.container-login {
+  max-width: 360px;
+  margin-top: 4rem;
+}
+
+.campo-login {
+  margin-bottom: 0.75rem;
+}
+
+.campo-login input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-family: inherit;
+  font-size: 0.925rem;
+  color: var(--text);
+  background: var(--bg);
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.campo-login input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.btn-login {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--accent);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-login:hover { background: var(--accent-hover); }
+
+.errore-login {
+  margin-top: 1rem;
+  text-align: center;
+  color: var(--danger);
+  font-size: 0.875rem;
+}

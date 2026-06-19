@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accedi — Lista della Spesa</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="container container-login">
+    <h1>Lista della Spesa</h1>
+    <form method="post" action="/login" id="form-login">
+      <div class="campo-login">
+        <input type="text" name="username" placeholder="Username" required autocomplete="username">
+      </div>
+      <div class="campo-login">
+        <input type="password" name="password" placeholder="Password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-login">Accedi</button>
+    </form>
+    <p id="errore-login" class="errore-login" hidden>Username o password errati.</p>
+  </main>
+  <script>
+    if (new URLSearchParams(location.search).get('err')) {
+      document.getElementById('errore-login').hidden = false;
+    }
+    document.querySelector('input[name="username"]').focus();
+  </script>
+</body>
+</html>

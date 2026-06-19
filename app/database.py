@@ -11,6 +11,14 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
+def _aggiungi_colonna_se_mancante(
+    conn: sqlite3.Connection, tabella: str, colonna: str, definizione: str
+) -> None:
+    cols = {row[1] for row in conn.execute(f"PRAGMA table_info({tabella})").fetchall()}
+    if colonna not in cols:
+        conn.execute(f"ALTER TABLE {tabella} ADD COLUMN {colonna} {definizione}")
+
+
 def init_db() -> None:
     conn = get_connection()
 
@@ -126,6 +134,31 @@ def init_db() -> None:
                 JOIN prodotti p ON lower(p.nome) = lower(a.nome)
             """)
         conn.execute("DROP TABLE articoli")
+
+    # --- Autenticazione: tabella utenti e colonne di tracciamento ---
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS utenti (
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            username          TEXT NOT NULL UNIQUE,
+            password_hash     TEXT NOT NULL,
+            nome_visualizzato TEXT NOT NULL,
+            creato_il         TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    """)
+
+    _aggiungi_colonna_se_mancante(
+        conn, "voci_lista_spesa", "aggiunto_da", "INTEGER REFERENCES utenti(id)"
+    )
+    _aggiungi_colonna_se_mancante(
+        conn, "voci_lista_spesa", "comprato_da", "INTEGER REFERENCES utenti(id)"
+    )
+    _aggiungi_colonna_se_mancante(
+        conn, "voci_dispensa", "aggiunto_da", "INTEGER REFERENCES utenti(id)"
+    )
+    _aggiungi_colonna_se_mancante(
+        conn, "voci_dispensa", "comprato_da", "INTEGER REFERENCES utenti(id)"
+    )
 
     conn.commit()
     conn.close()
